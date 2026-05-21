@@ -75,6 +75,8 @@
     btnSaveServerUrl: document.getElementById("btnSaveServerUrl"),
     btnReceiveFromServer: document.getElementById("btnReceiveFromServer"),
     btnSendToServer: document.getElementById("btnSendToServer"),
+    btnTopReceive: document.getElementById("btnTopReceive"),
+    btnTopSend: document.getElementById("btnTopSend"),
     btnClear: document.getElementById("btnClear"),
     btnBackup: document.getElementById("btnBackup"),
     btnRestore: document.getElementById("btnRestore"),
@@ -310,68 +312,151 @@
     const slotDates = getJournalDateSlots(startDateIso);
 
     for (let i = 0; i < 6; i++) {
-      const tr = document.createElement("tr");
-
-      const tdDate = document.createElement("td");
-      tdDate.className = "dateCell";
-
-      const top = document.createElement("div");
-      top.className = "dateTop";
-
-      const sub = document.createElement("div");
-      sub.className = "dateSub";
+      const card = document.createElement("section");
+      card.className = "dayCard";
+      card.dataset.dayIndex = String(i);
 
       const slotIso = slotDates[i];
       const slotDateObj = parseISODate(slotIso);
-      if (slotDateObj) {
-        top.textContent = formatMD(slotDateObj);
-        sub.textContent = `（${jpDow[slotDateObj.getDay()]}）`;
-      } else {
-        top.textContent = "";
-        sub.textContent = "";
-      }
+      const hasDate = Boolean(slotDateObj);
 
-      tdDate.appendChild(top);
-      tdDate.appendChild(sub);
+      if (!hasDate) card.classList.add("disabledDay");
+      if (i === 0 && hasDate) card.classList.add("open");
 
-      const tdA = document.createElement("td");
-      const tdB = document.createElement("td");
-      const tdC = document.createElement("td");
+      const head = document.createElement("button");
+      head.type = "button";
+      head.className = "dayCardHead";
 
-      const taA = document.createElement("textarea");
-      const taB = document.createElement("textarea");
-      const taC = document.createElement("textarea");
+      const left = document.createElement("div");
+      left.className = "dayTitle";
 
-      taA.className = "tarea";
-      taB.className = "tarea";
-      taC.className = "tarea";
+      const icon = document.createElement("span");
+      icon.className = "dayIcon";
+      icon.textContent = "▣";
 
-      taA.placeholder = slotIso ? "子どもの活動" : "";
-      taB.placeholder = slotIso ? "保育評価（日誌）" : "";
-      taC.placeholder = slotIso ? "出欠状況（例：風邪で○○ちゃん休み）" : "";
+      const dateText = document.createElement("span");
+      dateText.className = "dayDate";
+      dateText.textContent = hasDate ? formatMDJpDow(slotDateObj) : "—";
 
-      taA.dataset.field = `day${i}_activity`;
-      taB.dataset.field = `day${i}_evaluation`;
-      taC.dataset.field = `day${i}_attendance`;
-      taA.disabled = !slotIso;
-      taB.disabled = !slotIso;
-      taC.disabled = !slotIso;
+      left.appendChild(icon);
+      left.appendChild(dateText);
 
-      tdA.appendChild(taA);
-      tdB.appendChild(taB);
-      tdC.appendChild(taC);
+      const badge = document.createElement("span");
+      badge.className = "dayBadge";
+      badge.textContent = hasDate ? "未入力" : "対象外";
+      badge.dataset.badgeFor = String(i);
 
-      tr.appendChild(tdDate);
-      tr.appendChild(tdA);
-      tr.appendChild(tdB);
-      tr.appendChild(tdC);
-      el.journalBody.appendChild(tr);
+      const arrow = document.createElement("span");
+      arrow.className = "dayArrow";
+      arrow.textContent = "⌄";
+
+      head.appendChild(left);
+      head.appendChild(badge);
+      head.appendChild(arrow);
+      card.appendChild(head);
+
+      const body = document.createElement("div");
+      body.className = "dayCardBody";
+
+      const makeField = (kind, labelText, mark, placeholder, colorClass) => {
+        const wrap = document.createElement("div");
+        wrap.className = "dayField";
+
+        const label = document.createElement("div");
+        label.className = `dayFieldLabel ${colorClass}`;
+        const m = document.createElement("span");
+        m.className = "fieldMark";
+        m.textContent = mark;
+        const t = document.createElement("span");
+        t.textContent = labelText;
+        label.appendChild(m);
+        label.appendChild(t);
+
+        const ta = document.createElement("textarea");
+        ta.className = "tarea mobileTarea";
+        ta.placeholder = hasDate ? placeholder : "";
+        ta.dataset.field = `day${i}_${kind}`;
+        ta.disabled = !hasDate;
+        ta.maxLength = 500;
+
+        const count = document.createElement("div");
+        count.className = "charCount";
+        count.textContent = "0 / 500";
+        count.dataset.countFor = `day${i}_${kind}`;
+
+        wrap.appendChild(label);
+        wrap.appendChild(ta);
+        wrap.appendChild(count);
+        return wrap;
+      };
+
+      body.appendChild(makeField("activity", "子どもの活動", "♟", "子どもの活動を入力してください", "blueLabel"));
+      body.appendChild(makeField("evaluation", "保育評価（日誌）", "▣", "保育評価（日誌）を入力してください", "pinkLabel"));
+      body.appendChild(makeField("attendance", "出欠状況", "☻", "出欠状況を入力してください（例：風邪で○○ちゃん休み）", "greenLabel"));
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "daySaveBtn";
+      saveBtn.textContent = "💾 この日の内容を保存";
+      saveBtn.disabled = !hasDate;
+      saveBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        flushAutosave();
+        setSyncStatus("端末内保存");
+      });
+      body.appendChild(saveBtn);
+      card.appendChild(body);
+
+      head.addEventListener("click", () => {
+        if (!hasDate) return;
+        card.classList.toggle("open");
+      });
+
+      el.journalBody.appendChild(card);
     }
 
     Array.from(el.journalBody.querySelectorAll("textarea")).forEach((t) => {
-      t.addEventListener("input", scheduleAutosave);
-      t.addEventListener("change", scheduleAutosave);
+      t.addEventListener("input", () => {
+        updateTextareaCounter(t);
+        updateDayBadgeFromTextarea(t);
+        scheduleAutosave();
+      });
+      t.addEventListener("change", () => {
+        updateTextareaCounter(t);
+        updateDayBadgeFromTextarea(t);
+        scheduleAutosave();
+      });
+      updateTextareaCounter(t);
     });
+    updateAllDayBadges();
+  }
+
+  function updateTextareaCounter(textarea) {
+    if (!textarea || !textarea.dataset.field) return;
+    const counter = el.journalBody.querySelector(`[data-count-for="${textarea.dataset.field}"]`);
+    if (counter) counter.textContent = `${String(textarea.value || "").length} / 500`;
+  }
+
+  function updateDayBadgeFromTextarea(textarea) {
+    const m = String(textarea?.dataset?.field || "").match(/^day(\d+)_/);
+    if (m) updateDayBadge(Number(m[1]));
+  }
+
+  function updateDayBadge(index) {
+    const badge = el.journalBody.querySelector(`[data-badge-for="${index}"]`);
+    if (!badge) return;
+    const els = getJournalRowElements(index);
+    const hasText = [els.activity, els.evaluation, els.attendance].some((node) => String(node?.value || "").trim());
+    badge.textContent = hasText ? "入力中" : "未入力";
+    badge.classList.toggle("active", hasText);
+  }
+
+  function updateAllDayBadges() {
+    for (let i = 0; i < 6; i++) {
+      updateDayBadge(i);
+      const els = getJournalRowElements(i);
+      [els.activity, els.evaluation, els.attendance].forEach(updateTextareaCounter);
+    }
   }
 
   function getJournalRowElements(index) {
@@ -615,6 +700,7 @@
     el.case2Date.value = normalizeDateToISO(data.individual?.[1]?.dateIso ?? "");
     el.case2Text.value = data.individual?.[1]?.text ?? "";
     el.lastSavedView.textContent = data.updatedAt || "—";
+    updateAllDayBadges();
   }
 
   async function saveDataToServer(data) {
@@ -1650,6 +1736,8 @@
   if (el.btnSaveServerUrl) el.btnSaveServerUrl.addEventListener("click", saveServerUrlSetting);
   if (el.btnReceiveFromServer) el.btnReceiveFromServer.addEventListener("click", receiveCurrentWeekFromServer);
   if (el.btnSendToServer) el.btnSendToServer.addEventListener("click", sendCurrentWeekToServer);
+  if (el.btnTopReceive) el.btnTopReceive.addEventListener("click", receiveCurrentWeekFromServer);
+  if (el.btnTopSend) el.btnTopSend.addEventListener("click", sendCurrentWeekToServer);
 
   el.restoreFileInput.addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];

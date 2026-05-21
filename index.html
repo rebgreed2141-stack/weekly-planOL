@@ -15,10 +15,16 @@
   <div class="app">
     <div class="header">
       <div class="brand">
-        <img src="icon-192.png" alt="" class="appIcon">
-        <div>
-          <div class="title">週案日誌</div>
-          <div class="sub">持ち帰り入力版 / 園で受信・送信</div>
+        <div class="brandLeft">
+          <img src="icon-192.png" alt="" class="appIcon">
+          <div>
+            <div class="title">週案オフライン入力</div>
+            <div class="sub">園で受信・送信</div>
+          </div>
+        </div>
+        <div class="headerActions">
+          <button type="button" id="btnTopReceive" class="headerAction">⬇<span>受信</span></button>
+          <button type="button" id="btnTopSend" class="headerAction">⬆<span>送信</span></button>
         </div>
       </div>
     </div>
@@ -68,20 +74,11 @@
         <input id="events" type="text" placeholder="行事がなければ空欄" />
       </div>
 
-      <div class="card">
-        <div class="sectionTitle">日誌（開始日から6日分）</div>
-        <table>
-          <thead>
-            <tr>
-              <th class="colDate">日付</th>
-              <th>子どもの活動</th>
-              <th>保育評価（日誌）</th>
-              <th>出欠状況</th>
-            </tr>
-          </thead>
-          <tbody id="journalBody"></tbody>
-        </table>
+      <div class="journalInfo">
+        6日分の入力ができます。各日のカードをタップして開閉してください。
       </div>
+
+      <div class="dayCards" id="journalBody"></div>
 
       <div class="card">
         <div class="sectionTitle">1週間の評価</div>

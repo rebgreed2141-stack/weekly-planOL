@@ -410,3 +410,341 @@ th{
   .calendarTitle{order:-1;}
   .calendarCell{min-height:74px;}
 }
+
+/* ===== v3 スマホ縦向き：日誌カード型レイアウト ===== */
+:root{
+  --w: 480px;
+  --bg:#f6f8fb;
+  --card:#ffffff;
+  --bd:#d9e1ea;
+  --fg:#0f2744;
+  --muted:#6b7280;
+  --main:#0b5fc6;
+  --main-dark:#084a9b;
+  --main-soft:#eaf3ff;
+  --danger:#dc2626;
+}
+
+body{
+  background:#f6f8fb;
+  color:var(--fg);
+}
+
+.app{
+  width:min(100vw, var(--w));
+  padding:0;
+  padding-bottom:76px;
+}
+
+.header{
+  position:sticky;
+  top:0;
+  z-index:20;
+  border-radius:0;
+  margin:0;
+  padding:10px 12px;
+  background:linear-gradient(135deg, #074889, #0b68d4);
+  box-shadow:0 2px 10px rgba(0,0,0,.18);
+}
+
+.brand{
+  justify-content:space-between;
+  gap:8px;
+}
+
+.brandLeft{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+
+.appIcon{
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  padding:2px;
+}
+
+.title{
+  font-size:19px;
+  line-height:1.1;
+  white-space:nowrap;
+}
+
+.sub{
+  font-size:11px;
+  margin-top:3px;
+}
+
+.headerActions{
+  display:flex;
+  gap:8px;
+  flex:0 0 auto;
+}
+
+.headerAction{
+  min-height:44px;
+  min-width:52px;
+  border:0;
+  background:rgba(255,255,255,.12);
+  color:#fff;
+  border-radius:12px;
+  padding:4px 8px;
+  font-size:20px;
+  line-height:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+}
+
+.headerAction span{
+  font-size:12px;
+  font-weight:900;
+}
+
+.tabBar{
+  position:fixed;
+  left:50%;
+  bottom:0;
+  transform:translateX(-50%);
+  width:min(100vw, var(--w));
+  z-index:25;
+  margin:0;
+  border-radius:0;
+  border-left:0;
+  border-right:0;
+  border-bottom:0;
+  padding:6px 6px 8px;
+  box-shadow:0 -2px 12px rgba(0,0,0,.10);
+}
+
+.tabBarLeft{
+  grid-template-columns:repeat(4, 1fr);
+  gap:4px;
+}
+
+.tabBtn{
+  border:0;
+  background:#fff;
+  color:#6b7280;
+  min-height:48px;
+  padding:6px 2px;
+  border-radius:12px;
+  font-size:12px;
+}
+
+.tabBtn.active{
+  color:var(--main);
+  background:#eef6ff;
+}
+
+.tabPanel{
+  padding:10px;
+}
+
+.card,
+.journalInfo,
+.dayCard{
+  border-radius:12px;
+  box-shadow:0 1px 4px rgba(15,39,68,.06);
+}
+
+.card{
+  padding:12px;
+  margin-bottom:10px;
+}
+
+.sectionTitle{
+  color:#084a9b;
+  border-left-color:#0b68d4;
+}
+
+.autoLine{
+  grid-template-columns:64px 1fr;
+  gap:8px;
+}
+
+input, select, textarea{
+  border-radius:10px;
+  font-size:16px;
+}
+
+.journalInfo{
+  background:#eef6ff;
+  border:1px solid #cfe4ff;
+  padding:12px;
+  margin-bottom:10px;
+  font-weight:800;
+  color:#0f2744;
+  line-height:1.5;
+}
+
+.dayCards{
+  display:grid;
+  gap:10px;
+}
+
+.dayCard{
+  background:#fff;
+  border:1px solid #dbe3ee;
+  overflow:hidden;
+}
+
+.dayCard.open{
+  border-color:#74aaf2;
+  box-shadow:0 0 0 1px #74aaf2 inset, 0 2px 8px rgba(11,95,198,.08);
+}
+
+.dayCard.disabledDay{
+  opacity:.55;
+}
+
+.dayCardHead{
+  width:100%;
+  border:0;
+  background:#fff;
+  border-radius:0;
+  min-height:58px;
+  padding:12px 12px;
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+}
+
+.dayTitle{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+
+.dayIcon{
+  color:var(--main);
+  font-size:18px;
+}
+
+.dayDate{
+  font-size:21px;
+  font-weight:900;
+  color:#092548;
+  white-space:nowrap;
+}
+
+.dayBadge{
+  border:1px solid #d1d5db;
+  background:#f9fafb;
+  color:#6b7280;
+  border-radius:999px;
+  padding:4px 10px;
+  font-size:13px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.dayBadge.active{
+  color:#075db8;
+  background:#eaf3ff;
+  border-color:#a9cdf7;
+}
+
+.dayArrow{
+  color:#6b7280;
+  font-size:22px;
+  transform:rotate(0deg);
+  transition:transform .15s ease;
+}
+
+.dayCard.open .dayArrow{
+  transform:rotate(180deg);
+}
+
+.dayCardBody{
+  display:none;
+  padding:0 12px 12px;
+  border-top:1px solid #eef2f7;
+}
+
+.dayCard.open .dayCardBody{
+  display:block;
+}
+
+.dayField{
+  margin-top:15px;
+}
+
+.dayFieldLabel{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:17px;
+  font-weight:900;
+  color:#084a9b;
+  margin-bottom:8px;
+}
+
+.fieldMark{
+  width:22px;
+  text-align:center;
+  font-size:20px;
+  line-height:1;
+}
+
+.blueLabel{ color:#084a9b; }
+.pinkLabel{ color:#be185d; }
+.greenLabel{ color:#15803d; }
+
+.mobileTarea{
+  width:100%;
+  min-height:116px;
+  height:116px;
+  resize:vertical;
+  line-height:1.55;
+  padding:12px;
+}
+
+.charCount{
+  text-align:right;
+  color:#6b7280;
+  font-size:12px;
+  font-weight:800;
+  margin-top:-28px;
+  padding-right:10px;
+  pointer-events:none;
+}
+
+.daySaveBtn{
+  width:100%;
+  margin-top:16px;
+  border:0;
+  background:linear-gradient(135deg, #0b68d4, #0755b8);
+  color:#fff;
+  border-radius:10px;
+  min-height:48px;
+  font-size:16px;
+}
+
+.manageButtons button{
+  flex:1 1 130px;
+}
+
+.serverSetting{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+@media (max-width: 520px){
+  .title{font-size:18px;}
+  .appIcon{width:38px;height:38px;}
+  .headerAction{min-width:48px;font-size:18px;}
+  .dayDate{font-size:20px;}
+  .dayCardHead{padding:11px 10px;}
+  .dayCardBody{padding:0 10px 10px;}
+  .tabPanel{padding:8px;}
+  .card{padding:10px;}
+}
