@@ -748,3 +748,31 @@ input, select, textarea{
   .tabPanel{padding:8px;}
   .card{padding:10px;}
 }
+
+.classFilterBox{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+}
+
+.classCheckItem{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid var(--bd);
+  border-radius:12px;
+  background:#fff;
+  font-weight:900;
+}
+
+.classCheckItem input{
+  width:22px;
+  height:22px;
+  flex:0 0 auto;
+  accent-color:var(--main);
+}
+
+.classCheckItem span{
+  flex:1;
+}

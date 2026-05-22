@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#4CAF50">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="weekly-planOL.css">
+  <link rel="stylesheet" href="weekly-planOL.css?v=6">
 </head>
 
 <body>
@@ -150,6 +150,12 @@
 
 
       <div class="card">
+        <div class="sectionTitle">入力するクラス</div>
+        <div class="classFilterBox" id="classFilterBox"></div>
+        <div class="smallNote">チェックしたクラスだけ、カレンダー選択時とカレンダー表示に出ます。送受信するデータは全クラス分のままです。</div>
+      </div>
+
+      <div class="card">
         <div class="sectionTitle">園内サーバーとの送受信</div>
         <div class="manageButtons">
           <button type="button" id="btnReceiveFromServer">受信</button>
@@ -200,6 +206,6 @@
   </div>
 
   <script src="jszip.min.js"></script>
-  <script src="weekly-planOL.js"></script>
+  <script src="weekly-planOL.js?v=6"></script>
 </body>
 </html>
