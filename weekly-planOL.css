@@ -749,6 +749,7 @@ input, select, textarea{
   .card{padding:10px;}
 }
 
+
 .classFilterBox{
   display:grid;
   grid-template-columns:1fr;

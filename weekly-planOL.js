@@ -1,9 +1,8 @@
 (() => {
   "use strict";
 
-  // weekly-planOL v6: class checkbox immediate reflection fix.
-
   const jpDow = ["日", "月", "火", "水", "木", "金", "土"];
+  // v8: class checkbox filter only. Sync code is unchanged from v3.
   const classToAge = {
     "もみじ": 0,
     "どんぐり": 1,
@@ -122,7 +121,7 @@
   const DEFAULT_SERVER_URL = "http://192.168.1.60:3000";
   const CLIENT_ID_STORAGE_KEY = "weekly_plan_client_id";
   const LOCK_RENEW_INTERVAL_MS = 30000;
-  const ENABLED_CLASSES_STORAGE_KEY = "weekly_plan_enabled_classes_v2";
+  const ENABLED_CLASSES_STORAGE_KEY = "weekly_plan_enabled_classes_v8";
 
   let currentLock = null;
   let lockRenewTimer = null;
@@ -228,8 +227,7 @@
   }
 
   function getEnabledClasses() {
-    // 画面上のチェック状態を最優先で読む。
-    // チェックを入れた直後でも、カレンダー選択に即反映する。
+    // チェックを入れた直後でも反映するため、画面上のチェック状態を最優先で読む。
     if (el.classFilterBox) {
       const boxes = Array.from(el.classFilterBox.querySelectorAll('input[type="checkbox"]'));
       if (boxes.length > 0) {
@@ -246,9 +244,7 @@
     }
 
     // 初期状態は「チェックなし」。
-    if (!Array.isArray(saved)) {
-      return [];
-    }
+    if (!Array.isArray(saved)) return [];
 
     const set = new Set(saved.filter((classKey) => classOrder.includes(classKey)));
     return classOrder.filter((classKey) => set.has(classKey));
@@ -284,6 +280,7 @@
         const checked = Array.from(el.classFilterBox.querySelectorAll('input[type="checkbox"]:checked')).map((item) => item.value);
         saveEnabledClasses(checked);
 
+        // 現在選択中のクラスがOFFになった場合は、入力対象を外す。
         if (el.classSelect.value && !isClassEnabled(el.classSelect.value)) {
           flushAutosave();
           el.classSelect.value = "";
@@ -1490,11 +1487,7 @@
       const inCurrentMonth = cellDate.getMonth() + 1 === month;
       const selectable = isSelectableStartDate(cellDate);
       const isSelected = currentStartDateIso === cellIso;
-      const enabledSet = new Set(getEnabledClasses());
-      const marks = Array.from(marksByDate.get(cellIso) || []).filter((mark) => {
-        const classKey = classOrder.find((key) => classMarks[key] === mark);
-        return classKey && enabledSet.has(classKey);
-      });
+      const marks = Array.from(marksByDate.get(cellIso) || []);
       marks.sort((a, b) => {
         const aIndex = classOrder.findIndex((key) => classMarks[key] === a);
         const bIndex = classOrder.findIndex((key) => classMarks[key] === b);
