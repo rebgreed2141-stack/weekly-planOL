@@ -2,7 +2,7 @@
   "use strict";
 
   const jpDow = ["日", "月", "火", "水", "木", "金", "土"];
-  // v11: do not auto-receive from server. Local phone data must persist until explicit send/receive.
+  // v9: class checkbox is calendar-mark display only. Sync/class selection code is not affected.
   const classToAge = {
     "もみじ": 0,
     "どんぐり": 1,
@@ -226,19 +226,6 @@
     return `${classToAge[classKey]}歳児${classKey}組`;
   }
 
-  function loadEnabledClassesFromStorage() {
-    try {
-      const raw = localStorage.getItem(ENABLED_CLASSES_STORAGE_KEY);
-      if (!raw) return classOrder.slice();
-      const saved = JSON.parse(raw);
-      if (!Array.isArray(saved)) return classOrder.slice();
-      const set = new Set(saved.filter((classKey) => classOrder.includes(classKey)));
-      return classOrder.filter((classKey) => set.has(classKey));
-    } catch (_) {
-      return classOrder.slice();
-    }
-  }
-
   function getEnabledClasses() {
     // チェックを入れた直後でも反映するため、画面上のチェック状態を最優先で読む。
     if (el.classFilterBox) {
@@ -249,8 +236,18 @@
       }
     }
 
-    // 初回だけは全クラスON。以後は管理画面で保存した設定を使う。
-    return loadEnabledClassesFromStorage();
+    let saved = [];
+    try {
+      saved = JSON.parse(localStorage.getItem(ENABLED_CLASSES_STORAGE_KEY) || "[]");
+    } catch (_) {
+      saved = [];
+    }
+
+    // 初期状態は「チェックなし」。
+    if (!Array.isArray(saved)) return [];
+
+    const set = new Set(saved.filter((classKey) => classOrder.includes(classKey)));
+    return classOrder.filter((classKey) => set.has(classKey));
   }
 
   function isClassEnabled(classKey) {
@@ -264,7 +261,7 @@
 
   function renderClassFilter() {
     if (!el.classFilterBox) return;
-    const enabled = new Set(loadEnabledClassesFromStorage());
+    const enabled = new Set(getEnabledClasses());
     el.classFilterBox.innerHTML = "";
 
     classOrder.forEach((classKey) => {
@@ -780,7 +777,7 @@
       headers: {
         "Content-Type": "application/json",
         "X-Client-Id": getClientId(),
-        "X-Lock-Token": currentLock.token || ""
+        "X-Lock-Token": currentLock ? (currentLock.token || "") : ""
       },
       body: JSON.stringify(data)
     });
@@ -818,12 +815,16 @@
     if (!response.ok) throw new Error("server delete failed");
   }
 
+  async function getServerDataList() {
+    const response = await fetch(apiUrl("/api/weeks"), { method: "GET", cache: "no-store" });
+    if (!response.ok) throw new Error("server list failed");
+    const result = await response.json();
+    return Array.isArray(result.items) ? result.items : [];
+  }
+
   async function pullListFromServerToLocal() {
     try {
-      const response = await fetch(apiUrl("/api/weeks"), { method: "GET", cache: "no-store" });
-      if (!response.ok) throw new Error("server list failed");
-      const result = await response.json();
-      const items = Array.isArray(result.items) ? result.items : [];
+      const items = await getServerDataList();
 
       // サーバーの一覧を正として、端末内の週案キャッシュを作り直す
       const oldKeys = [];
@@ -1562,9 +1563,7 @@
 
     if (isCalendar) {
       renderCalendar();
-      // 自動受信はしない。
-      // 自宅で作った未送信データを、保育園で開いた瞬間にサーバー内容で消さないため。
-      // 受信は「受信」ボタンを押した時だけ行う。
+      pullListFromServerToLocal();
     }
     if (isVersion) {
       refreshLatestVersionInfo();
@@ -1738,28 +1737,23 @@
 
 
   async function receiveCurrentWeekFromServer() {
-    if (!currentStartDateIso) {
-      alert("カレンダーで週を選択してください。");
-      return;
-    }
-    const classKey = el.classSelect.value || "";
-    if (!classKey) {
-      alert("クラスを選択してください。");
-      return;
-    }
+    if (!confirm("サーバーの全データをスマホに取り込み、スマホ内データを上書きします。よろしいですか？")) return;
+
     try {
       setSyncStatus("受信中...");
-      const data = await loadDataFromServer(currentStartDateIso, classKey);
-      const key = makeStorageKey(currentStartDateIso, classKey);
-      if (data) {
-        localStorage.setItem(key, JSON.stringify(data));
-        withSuppressedAutosave(() => applyDataToInputs(data));
-        setSyncStatus("受信完了");
-        renderCalendar();
-      } else {
-        alert("サーバーにこの週のデータはありません。");
-        setSyncStatus("受信データなし");
+      await pullListFromServerToLocal();
+
+      if (currentStartDateIso && el.classSelect.value) {
+        const key = makeStorageKey(currentStartDateIso, el.classSelect.value || "");
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const data = JSON.parse(raw);
+          withSuppressedAutosave(() => applyDataToInputs(data));
+        }
       }
+
+      setSyncStatus("受信完了");
+      alert("サーバーの全データをスマホに取り込みました。");
     } catch (_) {
       alert("受信できません。園内Wi-Fi接続とサーバーURLを確認してください。");
       setSyncStatus("受信失敗");
@@ -1767,27 +1761,41 @@
   }
 
   async function sendCurrentWeekToServer() {
-    if (!currentStartDateIso) {
-      alert("カレンダーで週を選択してください。");
-      return;
-    }
-    const classKey = el.classSelect.value || "";
-    if (!classKey) {
-      alert("クラスを選択してください。");
-      return;
-    }
-
     flushAutosave();
-    const data = collectData(currentStartDateIso);
-    localStorage.setItem(makeStorageKey(currentStartDateIso, classKey), JSON.stringify(data));
 
-    if (!confirm("端末内のこの週データで、園内サーバーを上書きします。よろしいですか？")) return;
+    const localItems = getStoredDataList();
+    if (localItems.length === 0) {
+      alert("スマホ内に送信するデータがありません。");
+      return;
+    }
+
+    if (!confirm("スマホ内に保存されている全データで、園内サーバーを上書きします。よろしいですか？")) return;
 
     try {
       setSyncStatus("送信中...");
-      await saveDataToServer(data);
+
+      const localKeySet = new Set(localItems.map((data) => makeStorageKey(data.startDate, data.classKey)));
+      let serverItems = [];
+      try {
+        serverItems = await getServerDataList();
+      } catch (_) {
+        serverItems = [];
+      }
+
+      for (const data of serverItems) {
+        if (!data || !data.startDate || !data.classKey) continue;
+        const key = makeStorageKey(data.startDate, data.classKey);
+        if (!localKeySet.has(key)) {
+          await deleteDataFromServer(data.startDate, data.classKey);
+        }
+      }
+
+      for (const data of localItems) {
+        await saveDataToServer(data);
+      }
+
       setSyncStatus("送信完了");
-      alert("送信しました。");
+      alert(`スマホ内の全データを送信しました。\n送信件数：${localItems.length}件`);
     } catch (_) {
       alert("送信できません。園内Wi-Fi接続とサーバーURLを確認してください。");
       setSyncStatus("送信失敗");
@@ -1865,13 +1873,5 @@
     if (document.visibilityState === "hidden") {
       flushAutosave();
     }
-  });
-
-  window.addEventListener("pagehide", () => {
-    flushAutosave();
-  });
-
-  window.addEventListener("beforeunload", () => {
-    flushAutosave();
   });
 })();
