@@ -31,14 +31,13 @@
 
     <div class="tabBar">
       <div class="tabBarLeft">
-        <button type="button" class="tabBtn active" id="tabMainBtn" data-tab="main">入力</button>
-        <button type="button" class="tabBtn" id="tabCalendarBtn" data-tab="calendar">カレンダー</button>
+        <button type="button" class="tabBtn active" id="tabCalendarBtn" data-tab="calendar">カレンダー</button>
         <button type="button" class="tabBtn" id="tabManageBtn" data-tab="manage">管理</button>
         <button type="button" class="tabBtn" id="tabVersionBtn" data-tab="version">バージョン</button>
       </div>
     </div>
 
-    <section class="tabPanel active" id="tabMain">
+    <section class="tabPanel" id="tabMain">
       <div class="card">
         <div class="autoLine">
           <label>クラス</label>
@@ -115,7 +114,7 @@
       </div>
     </section>
 
-    <section class="tabPanel" id="tabCalendar">
+    <section class="tabPanel active" id="tabCalendar">
       <div class="card">
         <div class="calendarHead">
           <button type="button" id="btnPrevMonth">前の月</button>

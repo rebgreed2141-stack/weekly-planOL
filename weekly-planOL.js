@@ -1558,10 +1558,10 @@
     el.tabManage.classList.toggle("active", isManage);
     el.tabVersion.classList.toggle("active", isVersion);
 
-    el.tabMainBtn.classList.toggle("active", isMain);
-    el.tabCalendarBtn.classList.toggle("active", isCalendar);
-    el.tabManageBtn.classList.toggle("active", isManage);
-    el.tabVersionBtn.classList.toggle("active", isVersion);
+    if (el.tabMainBtn) el.tabMainBtn.classList.toggle("active", isMain);
+    if (el.tabCalendarBtn) el.tabCalendarBtn.classList.toggle("active", isCalendar);
+    if (el.tabManageBtn) el.tabManageBtn.classList.toggle("active", isManage);
+    if (el.tabVersionBtn) el.tabVersionBtn.classList.toggle("active", isVersion);
 
     if (isCalendar) {
       // カレンダー表示時に自動受信しない。
@@ -1804,10 +1804,10 @@
     renderCalendar();
   }
 
-  el.tabMainBtn.addEventListener("click", () => activateTab("main"));
-  el.tabCalendarBtn.addEventListener("click", () => activateTab("calendar"));
-  el.tabManageBtn.addEventListener("click", () => activateTab("manage"));
-  el.tabVersionBtn.addEventListener("click", () => activateTab("version"));
+  if (el.tabMainBtn) el.tabMainBtn.addEventListener("click", () => activateTab("main"));
+  if (el.tabCalendarBtn) el.tabCalendarBtn.addEventListener("click", () => activateTab("calendar"));
+  if (el.tabManageBtn) el.tabManageBtn.addEventListener("click", () => activateTab("manage"));
+  if (el.tabVersionBtn) el.tabVersionBtn.addEventListener("click", () => activateTab("version"));
   el.btnApplyUpdate.addEventListener("click", applyWaitingUpdate);
   el.btnPrevMonth.addEventListener("click", () => moveCalendarMonth(-1));
   el.btnNextMonth.addEventListener("click", () => moveCalendarMonth(1));
