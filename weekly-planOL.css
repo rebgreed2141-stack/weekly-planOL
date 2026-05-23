@@ -479,7 +479,7 @@ body{
 
 .headerActions{
   display:flex;
-  gap:8px;
+  gap:14px;
   flex:0 0 auto;
 }
 
@@ -498,6 +498,12 @@ body{
   align-items:center;
   justify-content:center;
   gap:3px;
+}
+
+
+.headerAction.sendAction{
+  background:#d32f2f;
+  color:#fff;
 }
 
 .headerAction span{

@@ -461,18 +461,6 @@
       body.appendChild(makeField("activity", "子どもの活動", "♟", "子どもの活動を入力してください", "blueLabel"));
       body.appendChild(makeField("evaluation", "保育評価（日誌）", "▣", "保育評価（日誌）を入力してください", "pinkLabel"));
       body.appendChild(makeField("attendance", "出欠状況", "☻", "出欠状況を入力してください（例：風邪で○○ちゃん休み）", "greenLabel"));
-
-      const saveBtn = document.createElement("button");
-      saveBtn.type = "button";
-      saveBtn.className = "daySaveBtn";
-      saveBtn.textContent = "💾 この日の内容を保存";
-      saveBtn.disabled = !hasDate;
-      saveBtn.addEventListener("click", (event) => {
-        event.stopPropagation();
-        flushAutosave();
-        setSyncStatus("端末内保存");
-      });
-      body.appendChild(saveBtn);
       card.appendChild(body);
 
       head.addEventListener("click", () => {
