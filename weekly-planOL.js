@@ -2,7 +2,7 @@
   "use strict";
 
   const jpDow = ["日", "月", "火", "水", "木", "金", "土"];
-  // v9: class checkbox is calendar-mark display only. Sync/class selection code is not affected.
+  // v11: do not auto-receive from server. Local phone data must persist until explicit send/receive.
   const classToAge = {
     "もみじ": 0,
     "どんぐり": 1,
@@ -226,6 +226,19 @@
     return `${classToAge[classKey]}歳児${classKey}組`;
   }
 
+  function loadEnabledClassesFromStorage() {
+    try {
+      const raw = localStorage.getItem(ENABLED_CLASSES_STORAGE_KEY);
+      if (!raw) return classOrder.slice();
+      const saved = JSON.parse(raw);
+      if (!Array.isArray(saved)) return classOrder.slice();
+      const set = new Set(saved.filter((classKey) => classOrder.includes(classKey)));
+      return classOrder.filter((classKey) => set.has(classKey));
+    } catch (_) {
+      return classOrder.slice();
+    }
+  }
+
   function getEnabledClasses() {
     // チェックを入れた直後でも反映するため、画面上のチェック状態を最優先で読む。
     if (el.classFilterBox) {
@@ -236,18 +249,8 @@
       }
     }
 
-    let saved = [];
-    try {
-      saved = JSON.parse(localStorage.getItem(ENABLED_CLASSES_STORAGE_KEY) || "[]");
-    } catch (_) {
-      saved = [];
-    }
-
-    // 初期状態は「チェックなし」。
-    if (!Array.isArray(saved)) return [];
-
-    const set = new Set(saved.filter((classKey) => classOrder.includes(classKey)));
-    return classOrder.filter((classKey) => set.has(classKey));
+    // 初回だけは全クラスON。以後は管理画面で保存した設定を使う。
+    return loadEnabledClassesFromStorage();
   }
 
   function isClassEnabled(classKey) {
@@ -261,7 +264,7 @@
 
   function renderClassFilter() {
     if (!el.classFilterBox) return;
-    const enabled = new Set(getEnabledClasses());
+    const enabled = new Set(loadEnabledClassesFromStorage());
     el.classFilterBox.innerHTML = "";
 
     classOrder.forEach((classKey) => {
@@ -1559,7 +1562,9 @@
 
     if (isCalendar) {
       renderCalendar();
-      pullListFromServerToLocal();
+      // 自動受信はしない。
+      // 自宅で作った未送信データを、保育園で開いた瞬間にサーバー内容で消さないため。
+      // 受信は「受信」ボタンを押した時だけ行う。
     }
     if (isVersion) {
       refreshLatestVersionInfo();
@@ -1860,5 +1865,13 @@
     if (document.visibilityState === "hidden") {
       flushAutosave();
     }
+  });
+
+  window.addEventListener("pagehide", () => {
+    flushAutosave();
+  });
+
+  window.addEventListener("beforeunload", () => {
+    flushAutosave();
   });
 })();
