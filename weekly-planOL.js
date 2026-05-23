@@ -943,9 +943,21 @@
       list.style.display = "grid";
       list.style.gap = "10px";
 
-      // クラス選択は必ず全クラスを出す。
-      // 管理タブのチェックは、カレンダー上の表示マークを絞るだけ。
-      classOrder.forEach((classKey) => {
+      // クラス選択一覧は、管理タブでチェックONのクラスだけを出す。
+      // ここで絞るのは「表示する選択肢」だけ。保存・送受信のキーは変更しない。
+      const enabledClasses = getEnabledClasses();
+
+      if (enabledClasses.length === 0) {
+        const empty = document.createElement("div");
+        empty.textContent = "管理画面で表示するクラスにチェックを入れてください。";
+        empty.style.padding = "12px 14px";
+        empty.style.border = "1px solid #cfd8dc";
+        empty.style.borderRadius = "10px";
+        empty.style.background = "#fff";
+        list.appendChild(empty);
+      }
+
+      enabledClasses.forEach((classKey) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.textContent = getClassLabel(classKey);
