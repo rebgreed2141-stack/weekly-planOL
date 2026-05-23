@@ -1632,106 +1632,36 @@
     updateVersionButtonState();
   }
 
-  async function setupVersionManagement() {
-    await refreshVersionViews();
-
-    if (!("serviceWorker" in navigator)) {
-      return;
-    }
+  async function unregisterServiceWorkerAndCaches() {
+    try {
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+    } catch (_) {}
 
     try {
-      let registration = await navigator.serviceWorker.getRegistration();
-      if (!registration) {
-        registration = await navigator.serviceWorker.register("./sw.js");
+      if (window.caches && caches.keys) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
       }
-
-      bindWaitingWorker(registration);
-    } catch (_) {
-      updateVersionButtonState();
-    }
+    } catch (_) {}
   }
 
-  async function waitForWaitingWorker(registration) {
-    if (registration.waiting) return registration.waiting;
-
-    return await new Promise((resolve) => {
-      let settled = false;
-
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        resolve(registration.waiting || null);
-      };
-
-      const installingWorker = registration.installing;
-      if (installingWorker) {
-        installingWorker.addEventListener("statechange", () => {
-          if (installingWorker.state === "installed") {
-            finish();
-          }
-        });
-      }
-
-      registration.addEventListener("updatefound", () => {
-        const worker = registration.installing;
-        if (!worker) {
-          finish();
-          return;
-        }
-        worker.addEventListener("statechange", () => {
-          if (worker.state === "installed") {
-            finish();
-          }
-        });
-      }, { once: true });
-
-      setTimeout(finish, 8000);
-    });
+  async function setupVersionManagement() {
+    await unregisterServiceWorkerAndCaches();
+    currentVersion = "Service Workerなし";
+    latestVersion = currentVersion;
+    reflectVersionViews();
+    if (el.btnApplyUpdate) {
+      el.btnApplyUpdate.disabled = true;
+    }
   }
 
   async function applyWaitingUpdate() {
-    if (!swRegistration || el.btnApplyUpdate.disabled) return;
-
-    el.btnApplyUpdate.disabled = true;
-
-    try {
-      try {
-        latestVersion = await fetchVersionJson({ noStore: true });
-      } catch (_) {}
-
-      await swRegistration.update();
-      bindWaitingWorker(swRegistration);
-
-      const waitingWorker = await waitForWaitingWorker(swRegistration);
-      if (!waitingWorker) {
-        reflectVersionViews();
-        return;
-      }
-
-      await new Promise((resolve) => {
-        let done = false;
-        const finish = () => {
-          if (done) return;
-          done = true;
-          resolve();
-        };
-
-        navigator.serviceWorker.addEventListener("controllerchange", finish, { once: true });
-        waitingWorker.postMessage({ type: "SKIP_WAITING" });
-        setTimeout(finish, 8000);
-      });
-
-      if (latestVersion) {
-        currentVersion = latestVersion;
-        localStorage.setItem(CURRENT_VERSION_STORAGE_KEY, currentVersion);
-      }
-
-      window.location.reload();
-    } catch (_) {
-      reflectVersionViews();
-    }
+    await unregisterServiceWorkerAndCaches();
+    alert("更新処理を行いました。画面を開き直してください。");
   }
-
 
   async function receiveCurrentWeekFromServer() {
     if (!currentStartDateIso) {

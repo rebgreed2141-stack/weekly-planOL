@@ -777,3 +777,16 @@ input, select, textarea{
 .classCheckItem span{
   flex:1;
 }
+
+
+.appIconText {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9f5ee;
+  font-size: 22px;
+  flex: 0 0 auto;
+}
