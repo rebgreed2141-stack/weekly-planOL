@@ -2,7 +2,7 @@
   "use strict";
 
   const jpDow = ["日", "月", "火", "水", "木", "金", "土"];
-  // v8: class checkbox filter only. Sync code is unchanged from v3.
+  // v9: class checkbox is calendar-mark display only. Sync/class selection code is not affected.
   const classToAge = {
     "もみじ": 0,
     "どんぐり": 1,
@@ -280,13 +280,8 @@
         const checked = Array.from(el.classFilterBox.querySelectorAll('input[type="checkbox"]:checked')).map((item) => item.value);
         saveEnabledClasses(checked);
 
-        // 現在選択中のクラスがOFFになった場合は、入力対象を外す。
-        if (el.classSelect.value && !isClassEnabled(el.classSelect.value)) {
-          flushAutosave();
-          el.classSelect.value = "";
-          loadWeek(currentStartDateIso || "");
-        }
-
+        // チェックボックスはカレンダー上の表示マークだけに使う。
+        // クラス選択・保存・送受信・現在編集中のデータには影響させない。
         renderCalendar();
       });
 
@@ -948,17 +943,9 @@
       list.style.display = "grid";
       list.style.gap = "10px";
 
-      const enabledClasses = getEnabledClasses();
-      if (enabledClasses.length === 0) {
-        const msg = document.createElement("div");
-        msg.textContent = "管理タブで入力するクラスにチェックを入れてください。";
-        msg.style.padding = "12px";
-        msg.style.background = "#fff7ed";
-        msg.style.borderRadius = "10px";
-        list.appendChild(msg);
-      }
-
-      enabledClasses.forEach((classKey) => {
+      // クラス選択は必ず全クラスを出す。
+      // 管理タブのチェックは、カレンダー上の表示マークを絞るだけ。
+      classOrder.forEach((classKey) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.textContent = getClassLabel(classKey);
@@ -1632,36 +1619,106 @@
     updateVersionButtonState();
   }
 
-  async function unregisterServiceWorkerAndCaches() {
-    try {
-      if ("serviceWorker" in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map((registration) => registration.unregister()));
-      }
-    } catch (_) {}
-
-    try {
-      if (window.caches && caches.keys) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((key) => caches.delete(key)));
-      }
-    } catch (_) {}
-  }
-
   async function setupVersionManagement() {
-    await unregisterServiceWorkerAndCaches();
-    currentVersion = "Service Workerなし";
-    latestVersion = currentVersion;
-    reflectVersionViews();
-    if (el.btnApplyUpdate) {
-      el.btnApplyUpdate.disabled = true;
+    await refreshVersionViews();
+
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    try {
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        registration = await navigator.serviceWorker.register("./sw.js");
+      }
+
+      bindWaitingWorker(registration);
+    } catch (_) {
+      updateVersionButtonState();
     }
   }
 
-  async function applyWaitingUpdate() {
-    await unregisterServiceWorkerAndCaches();
-    alert("更新処理を行いました。画面を開き直してください。");
+  async function waitForWaitingWorker(registration) {
+    if (registration.waiting) return registration.waiting;
+
+    return await new Promise((resolve) => {
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve(registration.waiting || null);
+      };
+
+      const installingWorker = registration.installing;
+      if (installingWorker) {
+        installingWorker.addEventListener("statechange", () => {
+          if (installingWorker.state === "installed") {
+            finish();
+          }
+        });
+      }
+
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        if (!worker) {
+          finish();
+          return;
+        }
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed") {
+            finish();
+          }
+        });
+      }, { once: true });
+
+      setTimeout(finish, 8000);
+    });
   }
+
+  async function applyWaitingUpdate() {
+    if (!swRegistration || el.btnApplyUpdate.disabled) return;
+
+    el.btnApplyUpdate.disabled = true;
+
+    try {
+      try {
+        latestVersion = await fetchVersionJson({ noStore: true });
+      } catch (_) {}
+
+      await swRegistration.update();
+      bindWaitingWorker(swRegistration);
+
+      const waitingWorker = await waitForWaitingWorker(swRegistration);
+      if (!waitingWorker) {
+        reflectVersionViews();
+        return;
+      }
+
+      await new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          resolve();
+        };
+
+        navigator.serviceWorker.addEventListener("controllerchange", finish, { once: true });
+        waitingWorker.postMessage({ type: "SKIP_WAITING" });
+        setTimeout(finish, 8000);
+      });
+
+      if (latestVersion) {
+        currentVersion = latestVersion;
+        localStorage.setItem(CURRENT_VERSION_STORAGE_KEY, currentVersion);
+      }
+
+      window.location.reload();
+    } catch (_) {
+      reflectVersionViews();
+    }
+  }
+
 
   async function receiveCurrentWeekFromServer() {
     if (!currentStartDateIso) {
