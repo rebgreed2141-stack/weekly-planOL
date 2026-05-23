@@ -121,7 +121,7 @@
   const DEFAULT_SERVER_URL = "http://192.168.1.60:3000";
   const CLIENT_ID_STORAGE_KEY = "weekly_plan_client_id";
   const LOCK_RENEW_INTERVAL_MS = 30000;
-  const ENABLED_CLASSES_STORAGE_KEY = "weekly_plan_enabled_classes_v13";
+  const ENABLED_CLASSES_STORAGE_KEY = "weekly_plan_enabled_classes";
 
   let currentLock = null;
   let lockRenewTimer = null;
@@ -823,17 +823,14 @@
   }
 
   async function saveAllDataToServer(items) {
-    const response = await fetch(apiUrl("/api/weeks"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Client-Id": getClientId()
-      },
-      body: JSON.stringify({ items })
-    });
-
-    if (!response.ok) throw new Error("server bulk save failed");
-    return response.json().catch(() => ({}));
+    // server.js は /api/weeks の一括POSTを持たないため、
+    // スマホ内の各データを /api/week へ1件ずつ保存する。
+    // これにより、選択中の週だけではなく、端末内の全 weekly_ データを送信する。
+    for (const data of items) {
+      if (!data || !data.startDate || !data.classKey) continue;
+      await saveDataToServer(data);
+    }
+    return { ok: true, count: items.length };
   }
 
   async function pullListFromServerToLocal() {
@@ -895,12 +892,15 @@
   function scheduleAutosave() {
     if (suppressAutosave || isLoadingWeek || isReadOnlyMode) return;
     refreshTopLabels();
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try {
-        autosave();
-      } catch (_) {}
-    }, 3000);
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    // 入力後すぐに端末内へ保存する。
+    // 画面移動やアプリ終了で、3秒待ちの保存漏れが起きないようにする。
+    try {
+      autosave();
+    } catch (_) {}
   }
 
   function getStoredDataList() {
@@ -1576,8 +1576,9 @@
     el.tabVersionBtn.classList.toggle("active", isVersion);
 
     if (isCalendar) {
+      // カレンダー表示時に自動受信しない。
+      // 自宅で入力したスマホ内データを、アプリ起動時にサーバーデータで消さないため。
       renderCalendar();
-      pullListFromServerToLocal();
     }
     if (isVersion) {
       refreshLatestVersionInfo();
@@ -1871,5 +1872,13 @@
     if (document.visibilityState === "hidden") {
       flushAutosave();
     }
+  });
+
+  window.addEventListener("pagehide", () => {
+    flushAutosave();
+  });
+
+  window.addEventListener("beforeunload", () => {
+    flushAutosave();
   });
 })();
