@@ -121,7 +121,7 @@
   const DEFAULT_SERVER_URL = "http://192.168.1.60:3000";
   const CLIENT_ID_STORAGE_KEY = "weekly_plan_client_id";
   const LOCK_RENEW_INTERVAL_MS = 30000;
-  const ENABLED_CLASSES_STORAGE_KEY = "weekly_plan_enabled_classes_v8";
+  const ENABLED_CLASSES_STORAGE_KEY = "weekly_plan_enabled_classes_v13";
 
   let currentLock = null;
   let lockRenewTimer = null;
@@ -820,6 +820,20 @@
     if (!response.ok) throw new Error("server list failed");
     const result = await response.json();
     return Array.isArray(result.items) ? result.items : [];
+  }
+
+  async function saveAllDataToServer(items) {
+    const response = await fetch(apiUrl("/api/weeks"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Client-Id": getClientId()
+      },
+      body: JSON.stringify({ items })
+    });
+
+    if (!response.ok) throw new Error("server bulk save failed");
+    return response.json().catch(() => ({}));
   }
 
   async function pullListFromServerToLocal() {
@@ -1774,25 +1788,9 @@
     try {
       setSyncStatus("送信中...");
 
-      const localKeySet = new Set(localItems.map((data) => makeStorageKey(data.startDate, data.classKey)));
-      let serverItems = [];
-      try {
-        serverItems = await getServerDataList();
-      } catch (_) {
-        serverItems = [];
-      }
-
-      for (const data of serverItems) {
-        if (!data || !data.startDate || !data.classKey) continue;
-        const key = makeStorageKey(data.startDate, data.classKey);
-        if (!localKeySet.has(key)) {
-          await deleteDataFromServer(data.startDate, data.classKey);
-        }
-      }
-
-      for (const data of localItems) {
-        await saveDataToServer(data);
-      }
+      // 送信は「選択中の週」ではなく、スマホ内の weekly_ データを全件まとめて送る。
+      // サーバー側はこの全件で丸ごと上書きする。
+      await saveAllDataToServer(localItems);
 
       setSyncStatus("送信完了");
       alert(`スマホ内の全データを送信しました。\n送信件数：${localItems.length}件`);
