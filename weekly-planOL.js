@@ -280,8 +280,7 @@
         const checked = Array.from(el.classFilterBox.querySelectorAll('input[type="checkbox"]:checked')).map((item) => item.value);
         saveEnabledClasses(checked);
 
-        // チェックボックスはカレンダー上の表示マークだけに使う。
-        // クラス選択・保存・送受信・現在編集中のデータには影響させない。
+        // チェックボックスはカレンダー表示と送受信対象の絞り込みに使う。
         renderCalendar();
       });
 
@@ -813,36 +812,47 @@
   async function saveAllDataToServer(items) {
     // server.js は /api/weeks の一括POSTを持たないため、
     // スマホ内の各データを /api/week へ1件ずつ保存する。
-    // これにより、選択中の週だけではなく、端末内の全 weekly_ データを送信する。
-    for (const data of items) {
-      if (!data || !data.startDate || !data.classKey) continue;
+    // 送信対象は、管理タブでチェックされているクラスの weekly_ データだけにする。
+    const enabledSet = new Set(getEnabledClasses());
+    const targetItems = items.filter((data) => data && data.startDate && data.classKey && enabledSet.has(data.classKey));
+
+    for (const data of targetItems) {
       await saveDataToServer(data);
     }
-    return { ok: true, count: items.length };
+    return { ok: true, count: targetItems.length };
   }
 
   async function pullListFromServerToLocal() {
     try {
       const items = await getServerDataList();
+      const enabledSet = new Set(getEnabledClasses());
+      const targetItems = items.filter((data) => data && data.startDate && data.classKey && enabledSet.has(data.classKey));
 
-      // サーバーの一覧を正として、端末内の週案キャッシュを作り直す
+      // サーバーの一覧を正として、チェック済みクラスの週案キャッシュだけ作り直す。
+      // 未チェッククラスの端末内データは触らない。
       const oldKeys = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith(STORAGE_PREFIX)) oldKeys.push(key);
+        if (!key || !key.startsWith(STORAGE_PREFIX)) continue;
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || "{}");
+          if (data && enabledSet.has(data.classKey)) oldKeys.push(key);
+        } catch (_) {
+          oldKeys.push(key);
+        }
       }
       oldKeys.forEach((key) => localStorage.removeItem(key));
 
-      items.forEach((data) => {
-        if (data && data.startDate && data.classKey) {
-          localStorage.setItem(makeStorageKey(data.startDate, data.classKey), JSON.stringify(data));
-        }
+      targetItems.forEach((data) => {
+        localStorage.setItem(makeStorageKey(data.startDate, data.classKey), JSON.stringify(data));
       });
 
       renderCalendar();
       setSyncStatus("同期完了");
+      return { ok: true, count: targetItems.length };
     } catch (_) {
       setSyncStatus("サーバー未接続：端末内に一時保存");
+      throw _;
     }
   }
 
@@ -1740,11 +1750,17 @@
 
 
   async function receiveCurrentWeekFromServer() {
-    if (!confirm("サーバーの全データをスマホに取り込み、スマホ内データを上書きします。よろしいですか？")) return;
+    const enabledClasses = getEnabledClasses();
+    if (enabledClasses.length === 0) {
+      alert("管理タブで受信するクラスにチェックを入れてください。");
+      return;
+    }
+
+    if (!confirm("チェック済みクラスのデータだけをサーバーからスマホに取り込みます。よろしいですか？")) return;
 
     try {
       setSyncStatus("受信中...");
-      await pullListFromServerToLocal();
+      const result = await pullListFromServerToLocal();
 
       if (currentStartDateIso && el.classSelect.value) {
         const key = makeStorageKey(currentStartDateIso, el.classSelect.value || "");
@@ -1756,7 +1772,7 @@
       }
 
       setSyncStatus("受信完了");
-      alert("サーバーの全データをスマホに取り込みました。");
+      alert(`チェック済みクラスのデータを受信しました。\n受信件数：${result.count}件`);
     } catch (_) {
       alert("受信できません。園内Wi-Fi接続とサーバーURLを確認してください。");
       setSyncStatus("受信失敗");
@@ -1766,23 +1782,30 @@
   async function sendCurrentWeekToServer() {
     flushAutosave();
 
-    const localItems = getStoredDataList();
-    if (localItems.length === 0) {
-      alert("スマホ内に送信するデータがありません。");
+    const enabledClasses = getEnabledClasses();
+    if (enabledClasses.length === 0) {
+      alert("管理タブで送信するクラスにチェックを入れてください。");
       return;
     }
 
-    if (!confirm("スマホ内に保存されている全データで、園内サーバーを上書きします。よろしいですか？")) return;
+    const localItems = getStoredDataList();
+    const enabledSet = new Set(enabledClasses);
+    const targetItems = localItems.filter((data) => data && data.startDate && data.classKey && enabledSet.has(data.classKey));
+    if (targetItems.length === 0) {
+      alert("チェック済みクラスの送信データがスマホ内にありません。");
+      return;
+    }
+
+    if (!confirm("チェック済みクラスのデータだけを園内サーバーへ送信します。よろしいですか？")) return;
 
     try {
       setSyncStatus("送信中...");
 
-      // 送信は「選択中の週」ではなく、スマホ内の weekly_ データを全件まとめて送る。
-      // サーバー側はこの全件で丸ごと上書きする。
-      await saveAllDataToServer(localItems);
+      // 送信は「選択中の週」ではなく、チェック済みクラスの weekly_ データだけを送る。
+      const result = await saveAllDataToServer(targetItems);
 
       setSyncStatus("送信完了");
-      alert(`スマホ内の全データを送信しました。\n送信件数：${localItems.length}件`);
+      alert(`チェック済みクラスのデータを送信しました。\n送信件数：${result.count}件`);
     } catch (_) {
       alert("送信できません。園内Wi-Fi接続とサーバーURLを確認してください。");
       setSyncStatus("送信失敗");
