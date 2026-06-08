@@ -108,7 +108,7 @@ button:disabled{
 
 .tabBarLeft{
   display:grid;
-  grid-template-columns:repeat(3, 1fr);
+  grid-template-columns:repeat(4, 1fr);
   gap:8px;
 }
 
@@ -782,4 +782,102 @@ input, select, textarea{
 
 .classCheckItem span{
   flex:1;
+}
+
+
+/* 定型文 */
+.phraseAddRow{
+  display:grid;
+  grid-template-columns:1fr 96px;
+  gap:10px;
+  align-items:start;
+}
+
+.templatePhraseInput{
+  min-height:82px;
+}
+
+.templatePhraseList{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.templatePhraseItem{
+  display:grid;
+  grid-template-columns:1fr 74px;
+  gap:8px;
+  align-items:start;
+  border:1px solid var(--bd);
+  border-radius:12px;
+  padding:10px;
+  background:var(--soft);
+}
+
+.templatePhraseText{
+  white-space:pre-wrap;
+  line-height:1.5;
+  font-weight:700;
+}
+
+.templatePhraseEmpty{
+  color:var(--muted);
+  font-weight:800;
+  padding:8px 0;
+}
+
+.phraseImportExport{
+  margin-top:22px;
+}
+
+.templatePhrasePopup{
+  position:fixed;
+  left:50%;
+  bottom:14px;
+  transform:translateX(-50%);
+  width:min(94vw, 760px);
+  max-height:55vh;
+  background:#fff;
+  border:2px solid var(--main);
+  border-radius:18px;
+  box-shadow:0 10px 28px rgba(0,0,0,.22);
+  z-index:1000;
+  overflow:hidden;
+}
+
+.templatePhrasePopupHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  background:var(--main-dark);
+  color:#fff;
+  font-weight:900;
+}
+
+.templatePhrasePopupHead button{
+  min-height:34px;
+  padding:4px 12px;
+  border-radius:10px;
+  font-size:20px;
+  line-height:1;
+}
+
+.templatePhrasePopupList{
+  padding:10px;
+  overflow:auto;
+  max-height:calc(55vh - 56px);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.templatePhrasePopupItem{
+  width:100%;
+  text-align:left;
+  white-space:pre-wrap;
+  line-height:1.5;
+  border-radius:12px;
+  background:var(--soft);
 }

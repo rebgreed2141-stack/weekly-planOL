@@ -32,6 +32,7 @@
     <div class="tabBar">
       <div class="tabBarLeft">
         <button type="button" class="tabBtn active" id="tabCalendarBtn" data-tab="calendar">カレンダー</button>
+        <button type="button" class="tabBtn" id="tabPhraseBtn" data-tab="phrase">定型文</button>
         <button type="button" class="tabBtn" id="tabManageBtn" data-tab="manage">管理</button>
         <button type="button" class="tabBtn" id="tabVersionBtn" data-tab="version">バージョン</button>
       </div>
@@ -137,6 +138,30 @@
       </div>
     </section>
 
+    <section class="tabPanel" id="tabPhrase">
+      <div class="card">
+        <div class="sectionTitle">定型文</div>
+        <div class="phraseAddRow">
+          <textarea id="templatePhraseText" class="templatePhraseInput" placeholder="定型文を入力"></textarea>
+          <button type="button" id="btnAddTemplatePhrase">登録</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sectionTitle">登録済み一覧</div>
+        <div id="templatePhraseList" class="templatePhraseList"></div>
+      </div>
+
+      <div class="card phraseImportExport">
+        <div class="sectionTitle">インポート・エクスポート</div>
+        <div class="manageButtons">
+          <button type="button" id="btnExportTemplatePhrases">エクスポート</button>
+          <button type="button" id="btnImportTemplatePhrases">インポート</button>
+        </div>
+        <input type="file" id="templatePhraseImportInput" accept=".json,application/json" hidden>
+      </div>
+    </section>
+
     <section class="tabPanel" id="tabManage">
       <div class="card">
         <div class="sectionTitle">サーバー接続</div>
@@ -151,7 +176,7 @@
       <div class="card">
         <div class="sectionTitle">入力するクラス</div>
         <div class="classFilterBox" id="classFilterBox"></div>
-        <div class="smallNote">チェックしたクラスだけ、カレンダー上のマーク表示に出ます。クラス選択・保存・送受信には影響しません。</div>
+        <div class="smallNote">チェックしたクラスだけ、カレンダー表示・送受信の対象になります。</div>
       </div>
       <div class="card">
         <div class="sectionTitle">管理</div>
@@ -192,6 +217,14 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <div id="templatePhrasePopup" class="templatePhrasePopup" hidden>
+    <div class="templatePhrasePopupHead">
+      <div>定型文</div>
+      <button type="button" id="btnCloseTemplatePhrasePopup">×</button>
+    </div>
+    <div id="templatePhrasePopupList" class="templatePhrasePopupList"></div>
   </div>
 
   <script src="jszip.min.js"></script>

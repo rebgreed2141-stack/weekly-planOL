@@ -85,15 +85,26 @@
     restoreFileInput: document.getElementById("restoreFileInput"),
     tabMainBtn: document.getElementById("tabMainBtn"),
     tabCalendarBtn: document.getElementById("tabCalendarBtn"),
+    tabPhraseBtn: document.getElementById("tabPhraseBtn"),
     tabManageBtn: document.getElementById("tabManageBtn"),
     tabVersionBtn: document.getElementById("tabVersionBtn"),
     tabMain: document.getElementById("tabMain"),
     tabCalendar: document.getElementById("tabCalendar"),
+    tabPhrase: document.getElementById("tabPhrase"),
     tabManage: document.getElementById("tabManage"),
     tabVersion: document.getElementById("tabVersion"),
     currentVersionView: document.getElementById("currentVersionView"),
     latestVersionView: document.getElementById("latestVersionView"),
     btnApplyUpdate: document.getElementById("btnApplyUpdate"),
+    templatePhraseText: document.getElementById("templatePhraseText"),
+    btnAddTemplatePhrase: document.getElementById("btnAddTemplatePhrase"),
+    templatePhraseList: document.getElementById("templatePhraseList"),
+    btnExportTemplatePhrases: document.getElementById("btnExportTemplatePhrases"),
+    btnImportTemplatePhrases: document.getElementById("btnImportTemplatePhrases"),
+    templatePhraseImportInput: document.getElementById("templatePhraseImportInput"),
+    templatePhrasePopup: document.getElementById("templatePhrasePopup"),
+    templatePhrasePopupList: document.getElementById("templatePhrasePopupList"),
+    btnCloseTemplatePhrasePopup: document.getElementById("btnCloseTemplatePhrasePopup"),
     btnPrevMonth: document.getElementById("btnPrevMonth"),
     btnNextMonth: document.getElementById("btnNextMonth"),
     calendarTitle: document.getElementById("calendarTitle"),
@@ -122,11 +133,13 @@
   const CLIENT_ID_STORAGE_KEY = "weekly_plan_client_id";
   const LOCK_RENEW_INTERVAL_MS = 30000;
   const ENABLED_CLASSES_STORAGE_KEY = "weekly_plan_enabled_classes";
+  const TEMPLATE_PHRASES_STORAGE_KEY = "weekly_plan_template_phrases";
 
   let currentLock = null;
   let lockRenewTimer = null;
   let isReadOnlyMode = false;
   let isLoadingWeek = false;
+  let activeTemplatePhraseTarget = null;
 
   const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -288,6 +301,204 @@
       label.appendChild(text);
       el.classFilterBox.appendChild(label);
     });
+  }
+
+  function getTemplatePhrases() {
+    let list = [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(TEMPLATE_PHRASES_STORAGE_KEY) || "[]");
+      if (Array.isArray(raw)) list = raw;
+      else if (raw && Array.isArray(raw.phrases)) list = raw.phrases;
+    } catch (_) {
+      list = [];
+    }
+
+    const seen = new Set();
+    const result = [];
+    list.forEach((item) => {
+      const text = String(item || "").trim();
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      result.push(text);
+    });
+    return result;
+  }
+
+  function saveTemplatePhrases(list) {
+    const seen = new Set();
+    const safe = [];
+    (Array.isArray(list) ? list : []).forEach((item) => {
+      const text = String(item || "").trim();
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      safe.push(text);
+    });
+    localStorage.setItem(TEMPLATE_PHRASES_STORAGE_KEY, JSON.stringify(safe));
+  }
+
+  function renderTemplatePhraseList() {
+    if (!el.templatePhraseList) return;
+    const phrases = getTemplatePhrases();
+    el.templatePhraseList.innerHTML = "";
+
+    if (phrases.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "templatePhraseEmpty";
+      empty.textContent = "登録済みの定型文はありません。";
+      el.templatePhraseList.appendChild(empty);
+      renderTemplatePhrasePopupList();
+      return;
+    }
+
+    phrases.forEach((phrase, index) => {
+      const row = document.createElement("div");
+      row.className = "templatePhraseItem";
+
+      const text = document.createElement("div");
+      text.className = "templatePhraseText";
+      text.textContent = phrase;
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "danger";
+      del.textContent = "削除";
+      del.addEventListener("click", () => {
+        const current = getTemplatePhrases();
+        current.splice(index, 1);
+        saveTemplatePhrases(current);
+        renderTemplatePhraseList();
+      });
+
+      row.appendChild(text);
+      row.appendChild(del);
+      el.templatePhraseList.appendChild(row);
+    });
+
+    renderTemplatePhrasePopupList();
+  }
+
+  function addTemplatePhrase() {
+    const text = String(el.templatePhraseText?.value || "").trim();
+    if (!text) {
+      alert("定型文を入力してください。");
+      return;
+    }
+
+    const phrases = getTemplatePhrases();
+    if (!phrases.includes(text)) phrases.push(text);
+    saveTemplatePhrases(phrases);
+    if (el.templatePhraseText) el.templatePhraseText.value = "";
+    renderTemplatePhraseList();
+  }
+
+  function exportTemplatePhrases() {
+    const phrases = getTemplatePhrases();
+    const blob = new Blob([JSON.stringify(phrases, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "weekly-template-phrases.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importTemplatePhrases(file) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const incoming = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.phrases) ? parsed.phrases : []);
+      if (!incoming.length) {
+        alert("定型文データが見つかりません。");
+        return;
+      }
+      const merged = getTemplatePhrases().concat(incoming);
+      saveTemplatePhrases(merged);
+      renderTemplatePhraseList();
+      alert("定型文をインポートしました。");
+    } catch (_) {
+      alert("インポートできません。JSONファイルを確認してください。");
+    } finally {
+      if (el.templatePhraseImportInput) el.templatePhraseImportInput.value = "";
+    }
+  }
+
+  function renderTemplatePhrasePopupList() {
+    if (!el.templatePhrasePopupList) return;
+    const phrases = getTemplatePhrases();
+    el.templatePhrasePopupList.innerHTML = "";
+
+    if (phrases.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "templatePhraseEmpty";
+      empty.textContent = "登録済みの定型文はありません。";
+      el.templatePhrasePopupList.appendChild(empty);
+      return;
+    }
+
+    phrases.forEach((phrase) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "templatePhrasePopupItem";
+      btn.textContent = phrase;
+      btn.addEventListener("click", () => insertTemplatePhraseToActiveTarget(phrase));
+      el.templatePhrasePopupList.appendChild(btn);
+    });
+  }
+
+  function showTemplatePhrasePopup(target) {
+    if (!target || target.disabled || target.readOnly) return;
+    activeTemplatePhraseTarget = target;
+    renderTemplatePhrasePopupList();
+    if (el.templatePhrasePopup) el.templatePhrasePopup.hidden = false;
+  }
+
+  function closeTemplatePhrasePopup() {
+    if (el.templatePhrasePopup) el.templatePhrasePopup.hidden = true;
+  }
+
+  function insertTemplatePhraseToActiveTarget(phrase) {
+    const target = activeTemplatePhraseTarget;
+    if (!target) return;
+
+    const value = String(target.value || "");
+    const start = typeof target.selectionStart === "number" ? target.selectionStart : value.length;
+    const end = typeof target.selectionEnd === "number" ? target.selectionEnd : value.length;
+    const prefix = value.slice(0, start);
+    const suffix = value.slice(end);
+    const insertText = prefix && !prefix.endsWith("\n") ? "\n" + phrase : phrase;
+
+    target.value = prefix + insertText + suffix;
+    const pos = (prefix + insertText).length;
+    if (typeof target.setSelectionRange === "function") {
+      target.focus();
+      target.setSelectionRange(pos, pos);
+    }
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+    closeTemplatePhrasePopup();
+  }
+
+  function bindTemplatePhraseInput(target) {
+    if (!target || target.dataset.templatePhraseBound === "1") return;
+    target.dataset.templatePhraseBound = "1";
+    target.addEventListener("focus", () => showTemplatePhrasePopup(target));
+    target.addEventListener("click", () => showTemplatePhrasePopup(target));
+  }
+
+  function bindTemplatePhraseInputs() {
+    [
+      el.weeklyAim,
+      el.events,
+      el.weeklyEvaluation,
+      el.case1Text,
+      el.case2Text
+    ].forEach(bindTemplatePhraseInput);
+
+    if (el.journalBody) {
+      Array.from(el.journalBody.querySelectorAll("textarea")).forEach(bindTemplatePhraseInput);
+    }
   }
 
   function isFiscalStartException(dateObj) {
@@ -483,6 +694,7 @@
       });
       updateTextareaCounter(t);
     });
+    bindTemplatePhraseInputs();
     updateAllDayBadges();
   }
 
@@ -1560,16 +1772,19 @@
 
     const isMain = tabName === "main";
     const isCalendar = tabName === "calendar";
+    const isPhrase = tabName === "phrase";
     const isManage = tabName === "manage";
     const isVersion = tabName === "version";
 
     el.tabMain.classList.toggle("active", isMain);
     el.tabCalendar.classList.toggle("active", isCalendar);
+    if (el.tabPhrase) el.tabPhrase.classList.toggle("active", isPhrase);
     el.tabManage.classList.toggle("active", isManage);
     el.tabVersion.classList.toggle("active", isVersion);
 
     if (el.tabMainBtn) el.tabMainBtn.classList.toggle("active", isMain);
     if (el.tabCalendarBtn) el.tabCalendarBtn.classList.toggle("active", isCalendar);
+    if (el.tabPhraseBtn) el.tabPhraseBtn.classList.toggle("active", isPhrase);
     if (el.tabManageBtn) el.tabManageBtn.classList.toggle("active", isManage);
     if (el.tabVersionBtn) el.tabVersionBtn.classList.toggle("active", isVersion);
 
@@ -1577,6 +1792,9 @@
       // カレンダー表示時に自動受信しない。
       // 自宅で入力したスマホ内データを、アプリ起動時にサーバーデータで消さないため。
       renderCalendar();
+    }
+    if (isPhrase) {
+      renderTemplatePhraseList();
     }
     if (isVersion) {
       refreshLatestVersionInfo();
@@ -1829,6 +2047,7 @@
 
   if (el.tabMainBtn) el.tabMainBtn.addEventListener("click", () => activateTab("main"));
   if (el.tabCalendarBtn) el.tabCalendarBtn.addEventListener("click", () => activateTab("calendar"));
+  if (el.tabPhraseBtn) el.tabPhraseBtn.addEventListener("click", () => activateTab("phrase"));
   if (el.tabManageBtn) el.tabManageBtn.addEventListener("click", () => activateTab("manage"));
   if (el.tabVersionBtn) el.tabVersionBtn.addEventListener("click", () => activateTab("version"));
   el.btnApplyUpdate.addEventListener("click", applyWaitingUpdate);
@@ -1844,6 +2063,14 @@
   if (el.btnSendToServer) el.btnSendToServer.addEventListener("click", sendCurrentWeekToServer);
   if (el.btnTopReceive) el.btnTopReceive.addEventListener("click", receiveCurrentWeekFromServer);
   if (el.btnTopSend) el.btnTopSend.addEventListener("click", sendCurrentWeekToServer);
+  if (el.btnAddTemplatePhrase) el.btnAddTemplatePhrase.addEventListener("click", addTemplatePhrase);
+  if (el.btnExportTemplatePhrases) el.btnExportTemplatePhrases.addEventListener("click", exportTemplatePhrases);
+  if (el.btnImportTemplatePhrases) el.btnImportTemplatePhrases.addEventListener("click", () => el.templatePhraseImportInput.click());
+  if (el.templatePhraseImportInput) el.templatePhraseImportInput.addEventListener("change", async (event) => {
+    const file = event.target.files && event.target.files[0];
+    await importTemplatePhrases(file);
+  });
+  if (el.btnCloseTemplatePhrasePopup) el.btnCloseTemplatePhrasePopup.addEventListener("click", closeTemplatePhrasePopup);
 
   el.restoreFileInput.addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];
@@ -1868,6 +2095,8 @@
     el.classSelect.options[0].textContent = "クラス（カレンダーで選択）";
   }
 
+  renderTemplatePhraseList();
+  bindTemplatePhraseInputs();
   renderClassFilter();
   buildJournalRows("");
   refreshTopLabels();
