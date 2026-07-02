@@ -623,6 +623,11 @@
       badge.className = "dayBadge";
       badge.textContent = hasDate ? "未入力" : "対象外";
       badge.dataset.badgeFor = String(i);
+      if (hasDate) {
+        badge.setAttribute("role", "button");
+        badge.setAttribute("tabindex", "0");
+        badge.setAttribute("aria-label", "この日の入力内容を保存");
+      }
 
       const arrow = document.createElement("span");
       arrow.className = "dayArrow";
@@ -678,17 +683,33 @@
         card.classList.toggle("open");
       });
 
+      if (hasDate) {
+        badge.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          manualSaveDay(i);
+        });
+        badge.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          event.stopPropagation();
+          manualSaveDay(i);
+        });
+      }
+
       el.journalBody.appendChild(card);
     }
 
     Array.from(el.journalBody.querySelectorAll("textarea")).forEach((t) => {
       t.addEventListener("input", () => {
         updateTextareaCounter(t);
+        markDayUnsavedFromTextarea(t);
         updateDayBadgeFromTextarea(t);
         scheduleAutosave();
       });
       t.addEventListener("change", () => {
         updateTextareaCounter(t);
+        markDayUnsavedFromTextarea(t);
         updateDayBadgeFromTextarea(t);
         scheduleAutosave();
       });
@@ -709,13 +730,41 @@
     if (m) updateDayBadge(Number(m[1]));
   }
 
+  function markDayUnsavedFromTextarea(textarea) {
+    const m = String(textarea?.dataset?.field || "").match(/^day(\d+)_/);
+    if (!m) return;
+    const badge = el.journalBody.querySelector(`[data-badge-for="${Number(m[1])}"]`);
+    if (badge) badge.dataset.saved = "0";
+  }
+
   function updateDayBadge(index) {
     const badge = el.journalBody.querySelector(`[data-badge-for="${index}"]`);
     if (!badge) return;
     const els = getJournalRowElements(index);
     const hasText = [els.activity, els.evaluation, els.attendance].some((node) => String(node?.value || "").trim());
-    badge.textContent = hasText ? "入力中" : "未入力";
-    badge.classList.toggle("active", hasText);
+    const isSaved = badge.dataset.saved === "1";
+    badge.textContent = hasText ? (isSaved ? "保存済み" : "保存") : "未入力";
+    badge.classList.toggle("active", hasText && !isSaved);
+    badge.classList.toggle("saved", hasText && isSaved);
+  }
+
+  function manualSaveDay(index) {
+    const badge = el.journalBody.querySelector(`[data-badge-for="${index}"]`);
+    if (!badge) return;
+    const els = getJournalRowElements(index);
+    const hasText = [els.activity, els.evaluation, els.attendance].some((node) => String(node?.value || "").trim());
+    if (!hasText) return;
+
+    try {
+      autosave();
+      badge.dataset.saved = "1";
+      updateDayBadge(index);
+      setSyncStatus("保存しました");
+    } catch (_) {
+      badge.dataset.saved = "0";
+      updateDayBadge(index);
+      setSyncStatus("保存できませんでした");
+    }
   }
 
   function updateAllDayBadges() {

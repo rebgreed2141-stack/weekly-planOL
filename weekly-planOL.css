@@ -652,10 +652,21 @@ input, select, textarea{
   white-space:nowrap;
 }
 
+.dayBadge[role="button"]{
+  cursor:pointer;
+  user-select:none;
+}
+
 .dayBadge.active{
   color:#075db8;
   background:#eaf3ff;
   border-color:#a9cdf7;
+}
+
+.dayBadge.saved{
+  color:#047857;
+  background:#ecfdf5;
+  border-color:#86efac;
 }
 
 .dayArrow{
