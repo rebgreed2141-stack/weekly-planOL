@@ -892,35 +892,3 @@ input, select, textarea{
   border-radius:12px;
   background:var(--soft);
 }
-
-.sectionTitleWithStatus{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.saveStatusBadge{
-  border:1px solid #d1d5db;
-  background:#f9fafb;
-  color:#6b7280;
-  border-radius:999px;
-  padding:4px 10px;
-  font-size:13px;
-  font-weight:900;
-  white-space:nowrap;
-  cursor:pointer;
-  user-select:none;
-}
-
-.saveStatusBadge.active{
-  color:#b91c1c;
-  background:#fef2f2;
-  border-color:#fca5a5;
-}
-
-.saveStatusBadge.saved{
-  color:#047857;
-  background:#ecfdf5;
-  border-color:#86efac;
-}

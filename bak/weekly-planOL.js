@@ -62,7 +62,6 @@
     weekLabel: document.getElementById("weekLabel"),
     classLabel: document.getElementById("classLabel"),
     weeklyAim: document.getElementById("weeklyAim"),
-    weeklyAimSaveStatus: document.getElementById("weeklyAimSaveStatus"),
     events: document.getElementById("events"),
     journalBody: document.getElementById("journalBody"),
     weeklyEvaluation: document.getElementById("weeklyEvaluation"),
@@ -720,41 +719,6 @@
     updateAllDayBadges();
   }
 
-  function hasWeeklyAimText() {
-    return Boolean(String(el.weeklyAim?.value || "").trim());
-  }
-
-  function updateWeeklyAimStatus() {
-    const badge = el.weeklyAimSaveStatus;
-    if (!badge) return;
-    const hasText = hasWeeklyAimText();
-    const isSaved = badge.dataset.saved === "1";
-    badge.textContent = hasText ? (isSaved ? "保存済み" : "未保存") : "未入力";
-    badge.classList.toggle("active", hasText && !isSaved);
-    badge.classList.toggle("saved", hasText && isSaved);
-  }
-
-  function markWeeklyAimUnsaved() {
-    const badge = el.weeklyAimSaveStatus;
-    if (!badge) return;
-    badge.dataset.saved = "0";
-    updateWeeklyAimStatus();
-  }
-
-  function manualSaveWeeklyAim() {
-    if (!hasWeeklyAimText()) return;
-    try {
-      autosave();
-      if (el.weeklyAimSaveStatus) el.weeklyAimSaveStatus.dataset.saved = "1";
-      updateWeeklyAimStatus();
-      setSyncStatus("保存しました");
-    } catch (_) {
-      if (el.weeklyAimSaveStatus) el.weeklyAimSaveStatus.dataset.saved = "0";
-      updateWeeklyAimStatus();
-      setSyncStatus("保存できませんでした");
-    }
-  }
-
   function updateTextareaCounter(textarea) {
     if (!textarea || !textarea.dataset.field) return;
     const counter = el.journalBody.querySelector(`[data-count-for="${textarea.dataset.field}"]`);
@@ -812,10 +776,6 @@
       badge.dataset.saved = hasText ? "1" : "0";
       updateDayBadge(i);
     }
-    if (el.weeklyAimSaveStatus) {
-      el.weeklyAimSaveStatus.dataset.saved = hasWeeklyAimText() ? "1" : "0";
-      updateWeeklyAimStatus();
-    }
   }
 
   function updateAllDayBadges(savedState) {
@@ -828,7 +788,6 @@
       const els = getJournalRowElements(i);
       [els.activity, els.evaluation, els.attendance].forEach(updateTextareaCounter);
     }
-    updateWeeklyAimStatus();
   }
 
   function getJournalRowElements(index) {
@@ -1073,7 +1032,6 @@
     el.case2Date.value = normalizeDateToISO(data.individual?.[1]?.dateIso ?? "");
     el.case2Text.value = data.individual?.[1]?.text ?? "";
     el.lastSavedView.textContent = data.updatedAt || "—";
-    if (el.weeklyAimSaveStatus) el.weeklyAimSaveStatus.dataset.saved = hasWeeklyAimText() ? "1" : "0";
     updateAllDayBadges("saved");
   }
 
@@ -1191,7 +1149,7 @@
     localStorage.setItem(key, JSON.stringify(data));
     el.lastSavedView.textContent = data.updatedAt;
     setSyncStatus("端末内保存");
-  
+    markAllFilledDayBadgesSaved();
     refreshTopLabels();
     renderCalendar();
   }
@@ -1214,12 +1172,11 @@
       clearTimeout(saveTimer);
       saveTimer = null;
     }
-    saveTimer = setTimeout(() => {
-      saveTimer = null;
-      try {
-        autosave();
-      } catch (_) {}
-    }, 1200);
+    // 入力後すぐに端末内へ保存する。
+    // 画面移動やアプリ終了で、3秒待ちの保存漏れが起きないようにする。
+    try {
+      autosave();
+    } catch (_) {}
   }
 
   function getStoredDataList() {
@@ -2195,19 +2152,9 @@
     el.case2Date,
     el.case2Text
   ].forEach((inp) => {
-    inp.addEventListener("input", () => {
-      if (inp === el.weeklyAim) markWeeklyAimUnsaved();
-      scheduleAutosave();
-    });
-    inp.addEventListener("change", () => {
-      if (inp === el.weeklyAim) markWeeklyAimUnsaved();
-      scheduleAutosave();
-    });
+    inp.addEventListener("input", scheduleAutosave);
+    inp.addEventListener("change", scheduleAutosave);
   });
-
-  if (el.weeklyAimSaveStatus) {
-    el.weeklyAimSaveStatus.addEventListener("click", manualSaveWeeklyAim);
-  }
 
   el.classSelect.disabled = true;
   if (el.classSelect.options.length > 0) {
