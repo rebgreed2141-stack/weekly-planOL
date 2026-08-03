@@ -72,9 +72,11 @@
           <button type="button" id="weeklyAimSaveStatus" class="saveStatusBadge" aria-label="週のねらいを保存">未入力</button>
         </div>
         <textarea id="weeklyAim" placeholder="週のねらいを入力"></textarea>
+        <div class="charCount" id="weeklyAimCount">0 / 120</div>
 
         <div class="sectionTitle" style="margin-top:10px;">行事（空欄OK）</div>
         <input id="events" type="text" placeholder="行事がなければ空欄" />
+        <div class="charCount" id="eventsCount">0 / 90</div>
       </div>
 
       <div class="journalInfo">
@@ -86,6 +88,7 @@
       <div class="card">
         <div class="sectionTitle">1週間の評価</div>
         <textarea id="weeklyEvaluation" class="shortArea" placeholder="1週間の評価"></textarea>
+        <div class="charCount" id="weeklyEvaluationCount">0 / 350</div>
       </div>
 
       <div class="card">
@@ -97,6 +100,7 @@
             <input id="case1Date" type="date" />
           </div>
           <textarea id="case1Text" class="shortArea" placeholder="事例1（今後の展望など）"></textarea>
+          <div class="charCount" id="case1TextCount">0 / 270</div>
         </div>
 
         <div class="caseBox">
@@ -105,6 +109,7 @@
             <input id="case2Date" type="date" />
           </div>
           <textarea id="case2Text" class="shortArea" placeholder="事例2（今後の展望など）"></textarea>
+          <div class="charCount" id="case2TextCount">0 / 270</div>
         </div>
       </div>
 

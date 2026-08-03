@@ -21,6 +21,14 @@
   };
   const classOrder = ["もみじ", "どんぐり", "こぐま", "りす", "のうさぎ", "かもしか"];
   const STORAGE_PREFIX = "weekly_";
+  const TEXT_LIMITS = {
+    weeklyAim: 120,
+    events: 90,
+    evaluation: 250,
+    weeklyEvaluation: 350,
+    individualText: 270,
+    defaultJournal: 500
+  };
   const BACKUP_HEADERS = [
     "classKey",
     "startDate",
@@ -62,14 +70,19 @@
     weekLabel: document.getElementById("weekLabel"),
     classLabel: document.getElementById("classLabel"),
     weeklyAim: document.getElementById("weeklyAim"),
+    weeklyAimCount: document.getElementById("weeklyAimCount"),
     weeklyAimSaveStatus: document.getElementById("weeklyAimSaveStatus"),
     events: document.getElementById("events"),
+    eventsCount: document.getElementById("eventsCount"),
     journalBody: document.getElementById("journalBody"),
     weeklyEvaluation: document.getElementById("weeklyEvaluation"),
+    weeklyEvaluationCount: document.getElementById("weeklyEvaluationCount"),
     case1Date: document.getElementById("case1Date"),
     case1Text: document.getElementById("case1Text"),
+    case1TextCount: document.getElementById("case1TextCount"),
     case2Date: document.getElementById("case2Date"),
     case2Text: document.getElementById("case2Text"),
+    case2TextCount: document.getElementById("case2TextCount"),
     weekKeyView: document.getElementById("weekKeyView"),
     lastSavedView: document.getElementById("lastSavedView"),
     syncStatusView: document.getElementById("syncStatusView"),
@@ -471,7 +484,14 @@
     const suffix = value.slice(end);
     const insertText = prefix && !prefix.endsWith("\n") ? "\n" + phrase : phrase;
 
-    target.value = prefix + insertText + suffix;
+    const nextValue = prefix + insertText + suffix;
+    const limit = Number(target.dataset.maxLength || target.maxLength || 0);
+    if (limit > 0 && nextValue.length > limit) {
+      showLengthLimitMessage(target);
+      return;
+    }
+
+    target.value = nextValue;
     const pos = (prefix + insertText).length;
     if (typeof target.setSelectionRange === "function") {
       target.focus();
@@ -479,6 +499,77 @@
     }
     target.dispatchEvent(new Event("input", { bubbles: true }));
     closeTemplatePhrasePopup();
+  }
+
+  function getLengthLimitLabel(target) {
+    return target?.dataset?.limitLabel || "この入力欄";
+  }
+
+  function showLengthLimitMessage(target) {
+    const limit = Number(target?.dataset?.maxLength || target?.maxLength || 0);
+    if (!limit) return;
+    alert(`最大${limit}文字までです。`);
+  }
+
+  function applyTextLengthLimit(target, limit, label) {
+    if (!target || !limit) return;
+    target.maxLength = limit;
+    target.dataset.maxLength = String(limit);
+    target.dataset.limitLabel = label;
+
+    target.addEventListener("beforeinput", (event) => {
+      if (!event.inputType || !event.inputType.startsWith("insert")) return;
+      const value = String(target.value || "");
+      const start = typeof target.selectionStart === "number" ? target.selectionStart : value.length;
+      const end = typeof target.selectionEnd === "number" ? target.selectionEnd : value.length;
+      const inserted = typeof event.data === "string" ? event.data : "";
+
+      if (inserted && value.length - (end - start) + inserted.length > limit) {
+        event.preventDefault();
+        showLengthLimitMessage(target);
+      } else if (!inserted && start === end && value.length >= limit) {
+        event.preventDefault();
+        showLengthLimitMessage(target);
+      }
+    });
+
+    target.addEventListener("paste", (event) => {
+      const pasted = event.clipboardData?.getData("text") || "";
+      const value = String(target.value || "");
+      const start = typeof target.selectionStart === "number" ? target.selectionStart : value.length;
+      const end = typeof target.selectionEnd === "number" ? target.selectionEnd : value.length;
+      if (value.length - (end - start) + pasted.length <= limit) return;
+      event.preventDefault();
+      showLengthLimitMessage(target);
+    });
+
+    target.addEventListener("input", () => {
+      if (String(target.value || "").length <= limit) return;
+      target.value = String(target.value || "").slice(0, limit);
+      showLengthLimitMessage(target);
+    });
+  }
+
+  function updateFixedTextCounter(target, counter, limit) {
+    if (!target || !counter) return;
+    counter.textContent = `${String(target.value || "").length} / ${limit}`;
+  }
+
+  function updateAllFixedTextCounters() {
+    updateFixedTextCounter(el.weeklyAim, el.weeklyAimCount, TEXT_LIMITS.weeklyAim);
+    updateFixedTextCounter(el.events, el.eventsCount, TEXT_LIMITS.events);
+    updateFixedTextCounter(el.weeklyEvaluation, el.weeklyEvaluationCount, TEXT_LIMITS.weeklyEvaluation);
+    updateFixedTextCounter(el.case1Text, el.case1TextCount, TEXT_LIMITS.individualText);
+    updateFixedTextCounter(el.case2Text, el.case2TextCount, TEXT_LIMITS.individualText);
+  }
+
+  function applyFixedTextLengthLimits() {
+    applyTextLengthLimit(el.weeklyAim, TEXT_LIMITS.weeklyAim, "週のねらい");
+    applyTextLengthLimit(el.events, TEXT_LIMITS.events, "行事");
+    applyTextLengthLimit(el.weeklyEvaluation, TEXT_LIMITS.weeklyEvaluation, "1週間の評価");
+    applyTextLengthLimit(el.case1Text, TEXT_LIMITS.individualText, "個別");
+    applyTextLengthLimit(el.case2Text, TEXT_LIMITS.individualText, "個別");
+    updateAllFixedTextCounters();
   }
 
   function bindTemplatePhraseInput(target) {
@@ -661,16 +752,17 @@
         ta.placeholder = hasDate ? placeholder : "";
         ta.dataset.field = `day${i}_${kind}`;
         ta.disabled = !hasDate;
-        ta.maxLength = 500;
-
-        const count = document.createElement("div");
-        count.className = "charCount";
-        count.textContent = "0 / 500";
-        count.dataset.countFor = `day${i}_${kind}`;
-
         wrap.appendChild(label);
         wrap.appendChild(ta);
-        wrap.appendChild(count);
+
+        if (kind === "evaluation") {
+          applyTextLengthLimit(ta, TEXT_LIMITS.evaluation, "保育評価");
+          const count = document.createElement("div");
+          count.className = "charCount";
+          count.textContent = `0 / ${TEXT_LIMITS.evaluation}`;
+          count.dataset.countFor = `day${i}_${kind}`;
+          wrap.appendChild(count);
+        }
         return wrap;
       };
 
@@ -758,7 +850,8 @@
   function updateTextareaCounter(textarea) {
     if (!textarea || !textarea.dataset.field) return;
     const counter = el.journalBody.querySelector(`[data-count-for="${textarea.dataset.field}"]`);
-    if (counter) counter.textContent = `${String(textarea.value || "").length} / 500`;
+    const limit = Number(textarea.dataset.maxLength || textarea.maxLength || TEXT_LIMITS.defaultJournal);
+    if (counter) counter.textContent = `${String(textarea.value || "").length} / ${limit}`;
   }
 
   function updateDayBadgeFromTextarea(textarea) {
@@ -907,6 +1000,7 @@
     el.case1Text.value = "";
     el.case2Date.value = "";
     el.case2Text.value = "";
+    updateAllFixedTextCounters();
 
     for (let i = 0; i < 6; i++) {
       const els = getJournalRowElements(i);
@@ -1072,6 +1166,7 @@
     el.case1Text.value = data.individual?.[0]?.text ?? "";
     el.case2Date.value = normalizeDateToISO(data.individual?.[1]?.dateIso ?? "");
     el.case2Text.value = data.individual?.[1]?.text ?? "";
+    updateAllFixedTextCounters();
     el.lastSavedView.textContent = data.updatedAt || "—";
     if (el.weeklyAimSaveStatus) el.weeklyAimSaveStatus.dataset.saved = hasWeeklyAimText() ? "1" : "0";
     updateAllDayBadges("saved");
@@ -2197,10 +2292,12 @@
   ].forEach((inp) => {
     inp.addEventListener("input", () => {
       if (inp === el.weeklyAim) markWeeklyAimUnsaved();
+      updateAllFixedTextCounters();
       scheduleAutosave();
     });
     inp.addEventListener("change", () => {
       if (inp === el.weeklyAim) markWeeklyAimUnsaved();
+      updateAllFixedTextCounters();
       scheduleAutosave();
     });
   });
@@ -2215,6 +2312,7 @@
   }
 
   renderTemplatePhraseList();
+  applyFixedTextLengthLimits();
   bindTemplatePhraseInputs();
   renderClassFilter();
   buildJournalRows("");
